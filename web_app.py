@@ -51,6 +51,19 @@ from src.quality_control import run_quality_control
 from src.trends import get_all_trending_topics
 from main import export_production_bundle
 
+# Automation & Platform Services
+from src.database import (
+    get_job, list_jobs, get_all_settings, set_setting, get_setting,
+    list_topic_queue, add_topic_to_queue, list_publishing_queue, update_publishing_status
+)
+from src.automation_manager import automation_mgr
+from src.scheduler import scheduler
+from src.topic_discovery import discover_and_populate_topics
+from src.video_providers import video_provider_mgr
+from src.youtube_uploader import youtube_uploader
+from src.youtube_analytics import get_channel_analytics_summary
+from src.cost_manager import cost_mgr
+
 app = FastAPI(
     title=f"{CHANNEL_NAME} — Stickman AI Video Production Studio",
     version="2.2.0"
@@ -379,6 +392,224 @@ async def get_output_file(filename: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(str(file_path), filename=filename)
+
+# ══════════════════════════════════════════════════════════
+# AUTOMATION, TOPICS, YOUTUBE & STUDIO APIs
+# ══════════════════════════════════════════════════════════
+
+class SettingsUpdateRequest(BaseModel):
+    settings: Dict[str, str]
+
+class TopicAddRequest(BaseModel):
+    topic: str
+    category: str = "AI Technology"
+
+class AutoJobRequest(BaseModel):
+    topic: Optional[str] = None
+    category: str = "AI Technology"
+    speaker: str = DEFAULT_SPEAKER
+    pace: float = DEFAULT_PACE
+    visual_style: str = DEFAULT_VISUAL_STYLE
+    stickman_style: str = "modern_beanie"
+    auto_publish: bool = True
+
+@app.on_event("startup")
+async def on_startup():
+    scheduler.start()
+
+@app.get("/api/automation/status")
+async def get_automation_status():
+    status = scheduler.get_status()
+    active_job = None
+    if status.get("active_job_id"):
+        active_job = get_job(status["active_job_id"])
+    return {
+        "scheduler": status,
+        "active_job": active_job
+    }
+
+@app.post("/api/automation/toggle")
+async def toggle_automation():
+    current = get_setting("automation_enabled", "false").lower() == "true"
+    new_state = "false" if current else "true"
+    set_setting("automation_enabled", new_state)
+    return {"automation_enabled": new_state == "true"}
+
+@app.post("/api/automation/pause")
+async def pause_automation():
+    automation_mgr.pause()
+    return {"status": "paused", "automation_enabled": False}
+
+@app.post("/api/automation/resume")
+async def resume_automation():
+    automation_mgr.resume()
+    return {"status": "resumed", "automation_enabled": True}
+
+@app.post("/api/automation/stop")
+async def stop_automation():
+    automation_mgr.stop()
+    return {"status": "stopped"}
+
+@app.post("/api/automation/generate-now")
+async def api_generate_now(req: AutoJobRequest):
+    if automation_mgr.is_running():
+        raise HTTPException(status_code=409, detail=f"Job {automation_mgr.current_job_id} is already in progress.")
+
+    target_topic = req.topic.strip() if req.topic and req.topic.strip() else None
+    if target_topic:
+        job_id = automation_mgr.start_production_job(
+            topic=target_topic,
+            category=req.category,
+            is_auto=False,
+            speaker=req.speaker,
+            pace=req.pace,
+            visual_style=req.visual_style,
+            stickman_style=req.stickman_style,
+            auto_publish=req.auto_publish
+        )
+    else:
+        job_id = automation_mgr.start_next_automated_job()
+        if not job_id:
+            raise HTTPException(status_code=400, detail="No topic available in queue. Add a topic or click Discover Trends.")
+
+    return {"job_id": job_id, "status": "started"}
+
+@app.get("/api/jobs")
+async def api_list_jobs(limit: int = 50):
+    return {"jobs": list_jobs(limit=limit)}
+
+@app.get("/api/jobs/{job_id}")
+async def api_get_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+@app.post("/api/jobs/{job_id}/retry")
+async def api_retry_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if automation_mgr.is_running():
+        raise HTTPException(status_code=409, detail="Another job is currently running.")
+
+    new_job_id = automation_mgr.start_production_job(
+        topic=job["topic"],
+        category=job["category"],
+        is_auto=False
+    )
+    return {"old_job_id": job_id, "new_job_id": new_job_id, "status": "started"}
+
+@app.get("/api/topics/queue")
+async def api_get_topic_queue():
+    return {"queue": list_topic_queue(limit=50)}
+
+@app.post("/api/topics/discover")
+async def api_discover_topics():
+    discovered = discover_and_populate_topics(limit_per_run=10)
+    return {"discovered_count": len(discovered), "new_topics": discovered}
+
+@app.post("/api/topics/add")
+async def api_add_topic(req: TopicAddRequest):
+    if not req.topic.strip():
+        raise HTTPException(status_code=400, detail="Topic cannot be empty")
+    from src.topic_discovery import calculate_relevance_score
+    cat, score = calculate_relevance_score(req.topic.strip())
+    added = add_topic_to_queue(
+        topic=req.topic.strip(),
+        category=req.category or cat,
+        source="Manual Creator Input",
+        relevance=score,
+        reason="Added by creator via Studio Dashboard"
+    )
+    return {"added": added, "topic": req.topic.strip(), "category": req.category, "score": score}
+
+@app.get("/api/research/{job_id}")
+async def api_get_research(job_id: str):
+    job = get_job(job_id)
+    if not job or not job.get("output_dir"):
+        raise HTTPException(status_code=404, detail="Research report not found for job")
+    r_json = Path(job["output_dir"]) / "research.json"
+    if not r_json.exists():
+        raise HTTPException(status_code=404, detail="research.json file does not exist")
+    with open(r_json, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@app.get("/api/media-providers")
+async def api_get_media_providers():
+    from src.provider_manager import provider_mgr
+    return {
+        "text_and_image": {
+            "diagnostics": provider_mgr.diagnostics,
+            "status_report": provider_mgr.get_status_report()
+        },
+        "video_generation": video_provider_mgr.get_providers_status()
+    }
+
+@app.get("/api/youtube/status")
+async def api_youtube_status():
+    return youtube_uploader.get_channel_info()
+
+@app.get("/api/youtube/auth-url")
+async def api_youtube_auth_url():
+    auth_url, err = youtube_uploader.get_authorization_url()
+    if err:
+        return {"configured": False, "error": err}
+    return {"configured": True, "auth_url": auth_url}
+
+@app.get("/api/youtube/oauth-callback")
+async def api_youtube_oauth_callback(code: str):
+    success, msg = youtube_uploader.handle_oauth_code(code)
+    if not success:
+        return HTMLResponse(f"<h3>YouTube Authorization Failed</h3><p>{msg}</p>")
+    return HTMLResponse("<h3>YouTube Authorization Successful!</h3><p>You can close this tab and return to the Studio Dashboard.</p><script>window.opener && window.opener.location.reload(); window.close();</script>")
+
+@app.get("/api/publishing/queue")
+async def api_publishing_queue():
+    return {"publishing_queue": list_publishing_queue()}
+
+@app.post("/api/publishing/upload/{queue_id}")
+async def api_manual_upload(queue_id: int):
+    items = list_publishing_queue()
+    target = next((item for item in items if item["id"] == queue_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Queue item not found")
+
+    video_path = Path(target.get("output_dir", "")) / "final_video.mp4"
+    if not video_path.exists():
+        raise HTTPException(status_code=400, detail="final_video.mp4 not found in project directory")
+
+    success, res = youtube_uploader.upload_video(
+        video_path=str(video_path),
+        title=target["title"],
+        description=target["description"],
+        tags=[t.strip() for t in (target["tags"] or "").split(",")],
+        privacy_status=target.get("privacy_status", "private")
+    )
+    if success:
+        update_publishing_status(queue_id, "uploaded", res.get("video_id"), res.get("video_url"))
+        return {"status": "uploaded", "youtube_id": res.get("video_id"), "video_url": res.get("video_url")}
+    else:
+        update_publishing_status(queue_id, "failed", error=res.get("error"))
+        raise HTTPException(status_code=500, detail=res.get("error"))
+
+@app.get("/api/analytics")
+async def api_get_analytics():
+    return get_channel_analytics_summary()
+
+@app.get("/api/costs")
+async def api_get_costs():
+    return cost_mgr.get_cost_report()
+
+@app.get("/api/settings")
+async def api_get_settings():
+    return {"settings": get_all_settings()}
+
+@app.post("/api/settings")
+async def api_update_settings(req: SettingsUpdateRequest):
+    for k, v in req.settings.items():
+        set_setting(k, v)
+    return {"status": "updated", "settings": get_all_settings()}
 
 def start_server(host: str = "127.0.0.1", port: int = 8000):
     print("=" * 65)

@@ -2,6 +2,11 @@
 .env
 .env.*
 *.env
+*token*.json
+*credentials*.json
+*.db
+*.db-journal
+*.db-wal
 
 # Python Virtual Environment & Caches
 .venv/

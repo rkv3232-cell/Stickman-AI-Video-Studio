@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR
 
 # API Keys
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
