@@ -31,6 +31,7 @@ SCOPES = [
 class YouTubeUploader:
     def __init__(self):
         self._service = None
+        self._flow = None
 
     def is_configured(self) -> bool:
         """Checks if client_secrets.json exists."""
@@ -72,6 +73,7 @@ class YouTubeUploader:
                 scopes=SCOPES,
                 redirect_uri=redirect_uri
             )
+            self._flow = flow
             auth_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
@@ -81,6 +83,33 @@ class YouTubeUploader:
         except Exception as e:
             return None, f"Failed to generate authorization URL: {str(e)}"
 
+    def authenticate_interactive(self) -> Tuple[bool, str]:
+        """
+        Launches 1-click browser authentication on local machine.
+        Automatically opens Google consent page, captures token, and saves youtube_token.json.
+        """
+        if not self.is_configured():
+            return False, "client_secrets.json not found in project root."
+
+        try:
+            from google_auth_oauthlib.flow import InstalledAppFlow
+
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(CLIENT_SECRETS_FILE),
+                scopes=SCOPES
+            )
+            creds = flow.run_local_server(port=0, prompt='consent')
+
+            with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+                f.write(creds.to_json())
+
+            self._service = None
+            info = self.get_channel_info()
+            channel_name = info.get("channel_name", CHANNEL_NAME)
+            return True, f"Successfully connected to YouTube Channel: '{channel_name}'!"
+        except Exception as e:
+            return False, f"Interactive authorization failed: {str(e)}"
+
     def handle_oauth_code(self, code: str, redirect_uri: str = "http://localhost:8000/api/youtube/oauth-callback") -> Tuple[bool, str]:
         """Exchanges authorization code for tokens and saves youtube_token.json."""
         if not self.is_configured():
@@ -89,11 +118,14 @@ class YouTubeUploader:
         try:
             from google_auth_oauthlib.flow import Flow
 
-            flow = Flow.from_client_secrets_file(
-                str(CLIENT_SECRETS_FILE),
-                scopes=SCOPES,
-                redirect_uri=redirect_uri
-            )
+            if self._flow is not None:
+                flow = self._flow
+            else:
+                flow = Flow.from_client_secrets_file(
+                    str(CLIENT_SECRETS_FILE),
+                    scopes=SCOPES,
+                    redirect_uri=redirect_uri
+                )
             flow.fetch_token(code=code)
             creds = flow.credentials
 
@@ -101,6 +133,7 @@ class YouTubeUploader:
                 f.write(creds.to_json())
 
             self._service = None  # Reset service instance
+            self._flow = None
             return True, "YouTube channel successfully authorized!"
         except Exception as e:
             return False, f"Failed to exchange OAuth code: {str(e)}"

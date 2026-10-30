@@ -51,7 +51,7 @@ AVAILABLE_SPEAKERS = {
 }
 DEFAULT_SPEAKER = "aditya"
 DEFAULT_MODEL = "bulbul:v3"
-DEFAULT_PACE = 1.05
+DEFAULT_PACE = 1.02
 TARGET_LANGUAGE_CODE = "hi-IN"
 
 # Subtitle & Typography Fonts (Roman Hinglish & Multi-Script Support)

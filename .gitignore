@@ -4,9 +4,13 @@
 *.env
 *token*.json
 *credentials*.json
+*secret*.json
+client_secrets.json
+client_secret*.json
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 
 # Python Virtual Environment & Caches
 .venv/

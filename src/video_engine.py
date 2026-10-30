@@ -137,7 +137,7 @@ def build_short_video(
     stickman_style: str = "modern_beanie",
     visual_keywords: list[str] = None,
     output_filename: str = "final_short.mp4",
-    bgm_volume: float = 0.12,
+    bgm_volume: float = 0.06,
     progress_callback = None,
     word_timings: list[dict] = None
 ) -> str:
@@ -279,7 +279,7 @@ def build_short_video(
             sfx = (
                 AudioFileClip(str(whoosh_path))
                 .with_start(max(0, t_trans - 0.15))
-                .with_volume_scaled(0.35)
+                .with_volume_scaled(0.20)
             )
             audio_tracks.append(sfx)
 

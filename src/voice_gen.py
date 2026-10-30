@@ -143,26 +143,57 @@ def generate_voiceover_edge_with_timings(
 
     return duration, word_timings
 
-def chunk_text_for_sarvam(text: str, max_chars: int = 400) -> list[str]:
-    """Splits text into clean sentence chunks under max_chars so Sarvam 500-char limit is never exceeded."""
-    tokens = re.split(r'([।!?\.])', text.strip())
-    chunks = []
-    current = ""
+def chunk_text_for_sarvam_batches(text: str, max_chars_per_item: int = 350, max_items_per_batch: int = 1) -> list[list[str]]:
+    """
+    Splits narration into clean, natural sentence chunks and groups them into batches of
+    `max_items_per_batch` (default 1 sentence per API call for ultra-fast response and 0 timeouts).
+    """
+    # Clean out markdown, symbols, and formatting that disrupt TTS
+    cleaned = re.sub(r'[*#_~`\[\]\(\)\{\}]', '', text.strip())
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    # Ensure natural spacing after punctuation
+    cleaned = re.sub(r'([।!?\.])([A-Za-z])', r'\1 \2', cleaned)
+
+    tokens = re.split(r'([।!?\.\n]+)', cleaned)
+    raw_sentences = []
     for i in range(0, len(tokens), 2):
         sent = tokens[i].strip()
-        punct = tokens[i+1] if i + 1 < len(tokens) else ""
+        punct = tokens[i+1] if i + 1 < len(tokens) else "."
+        # Keep clean punctuation
+        if punct in ["\n", "\r\n"]:
+            punct = "."
         part = f"{sent}{punct}".strip()
-        if not part:
-            continue
-        if len(current) + len(part) + 1 <= max_chars:
-            current = f"{current} {part}".strip()
+        if part and len(part) > 2:
+            raw_sentences.append(part)
+
+    if not raw_sentences:
+        raw_sentences = [cleaned[:max_chars_per_item]]
+
+    # Ensure no single item exceeds max_chars_per_item
+    sanitized_items = []
+    for s in raw_sentences:
+        if len(s) <= max_chars_per_item:
+            sanitized_items.append(s)
         else:
-            if current:
-                chunks.append(current)
-            current = part
-    if current:
-        chunks.append(current)
-    return chunks if chunks else [text.strip()[:max_chars]]
+            # Sub-split long sentences by comma or space
+            words = s.split()
+            buf = ""
+            for w in words:
+                if len(buf) + len(w) + 1 <= max_chars_per_item:
+                    buf = f"{buf} {w}".strip()
+                else:
+                    if buf:
+                        sanitized_items.append(buf + ".")
+                    buf = w
+            if buf:
+                sanitized_items.append(buf)
+
+    # Group into batches of max_items_per_batch (default 1 for 100% reliability)
+    batches = []
+    for i in range(0, len(sanitized_items), max_items_per_batch):
+        batches.append(sanitized_items[i:i + max_items_per_batch])
+
+    return batches
 
 def generate_voiceover_sarvam_with_timings(
     text: str,
@@ -172,10 +203,18 @@ def generate_voiceover_sarvam_with_timings(
     model: str = DEFAULT_MODEL
 ) -> tuple[float, list[dict]]:
     """
-    Calls Sarvam AI Text-to-Speech API (bulbul:v3) and generates high-fidelity word timings.
+    Calls Sarvam AI Text-to-Speech API (bulbul:v3) with ultra-reliable single-sentence
+    dispatch, connection pooling, automatic exponential retries, natural sentence-pause
+    mastering, and studio-grade peak audio normalization.
     """
     if not SARVAM_API_KEY:
         raise ValueError("SARVAM_API_KEY is not configured in .env")
+
+    import io
+    import time
+    import numpy as np
+    from urllib3.util import Retry
+    from requests.adapters import HTTPAdapter
 
     url = "https://api.sarvam.ai/text-to-speech"
     headers = {
@@ -183,38 +222,96 @@ def generate_voiceover_sarvam_with_timings(
         "Content-Type": "application/json"
     }
 
-    text_chunks = chunk_text_for_sarvam(text, max_chars=400)
-    print(f"[Sarvam AI] Sending {len(text_chunks)} chunks (total length: {len(text)} chars)...")
+    # Setup resilient HTTP session with connection pooling
+    session = requests.Session()
+    adapter = HTTPAdapter(pool_connections=5, pool_maxsize=5)
+    session.mount("https://", adapter)
 
-    payload = {
-        "inputs": text_chunks,
-        "target_language_code": TARGET_LANGUAGE_CODE,
-        "speaker": speaker,
-        "model": model,
-        "pace": pace,
-        "speech_sample_rate": 22050,
-        "enable_preprocessing": True
-    }
+    batches = chunk_text_for_sarvam_batches(text, max_chars_per_item=350, max_items_per_batch=1)
+    print(f"[Sarvam AI] Synthesizing {len(batches)} sentences using speaker '{speaker}' ({model}, pace: {pace}x)...")
 
-    response = requests.post(url, json=payload, headers=headers, timeout=35)
-    if response.status_code != 200:
-        raise RuntimeError(f"Sarvam AI TTS Error {response.status_code}: {response.text}")
+    all_audio_frames = b""
+    sample_params = None
 
-    res_data = response.json()
-    audios = res_data.get("audios", [])
-    if not audios:
-        raise RuntimeError("Sarvam AI did not return audio data.")
+    for idx, b_inputs in enumerate(batches, 1):
+        clean_text_preview = b_inputs[0][:60] + "..." if len(b_inputs[0]) > 60 else b_inputs[0]
+        print(f"  🎙️ [Sarvam AI] Sentence {idx}/{len(batches)}: \"{clean_text_preview}\"")
+        payload = {
+            "inputs": b_inputs,
+            "target_language_code": TARGET_LANGUAGE_CODE,
+            "speaker": speaker,
+            "model": model,
+            "pace": pace,
+            "speech_sample_rate": 22050,
+            "enable_preprocessing": True
+        }
 
-    audio_bytes = base64.b64decode(audios[0])
+        # Resilient retry loop (up to 3 attempts with exponential backoff)
+        res_data = None
+        for attempt in range(1, 4):
+            try:
+                response = session.post(url, json=payload, headers=headers, timeout=50)
+                if response.status_code == 200:
+                    res_data = response.json()
+                    break
+                elif response.status_code in [429, 500, 502, 503, 504]:
+                    print(f"    ⚠️ [Sarvam AI] Temporary status {response.status_code} on attempt {attempt}/3, retrying...")
+                    time.sleep(1.5 * attempt)
+                else:
+                    raise RuntimeError(f"Sarvam AI Error {response.status_code}: {response.text}")
+            except (requests.Timeout, requests.ConnectionError) as net_err:
+                print(f"    ⚠️ [Sarvam AI] Network timeout/error on attempt {attempt}/3: {net_err}")
+                if attempt == 3:
+                    raise RuntimeError(f"Sarvam AI failed after 3 network attempts: {net_err}")
+                time.sleep(1.5 * attempt)
+
+        if not res_data:
+            raise RuntimeError(f"Sarvam AI failed to synthesize sentence {idx} after retries.")
+
+        audios = res_data.get("audios", [])
+        if not audios:
+            raise RuntimeError(f"Sarvam AI returned empty audio in sentence {idx}.")
+
+        for a_b64 in audios:
+            raw_wav = base64.b64decode(a_b64)
+            with wave.open(io.BytesIO(raw_wav), "rb") as w:
+                if sample_params is None:
+                    sample_params = (w.getnchannels(), w.getsampwidth(), w.getframerate())
+                frames = w.readframes(w.getnframes())
+                all_audio_frames += frames
+
+                # Insert a subtle 100ms breathing silence between sentences for natural human cadence
+                silence_frames = int(sample_params[2] * 0.10)
+                silence_bytes = b"\x00" * (silence_frames * sample_params[0] * sample_params[1])
+                all_audio_frames += silence_bytes
+
+    if not all_audio_frames or sample_params is None:
+        raise RuntimeError("Failed to assemble audio from Sarvam AI.")
+
+    # Peak amplitude normalization to -0.8 dB for loud, broadcast-ready punch
+    samples = np.frombuffer(all_audio_frames, dtype=np.int16).astype(np.float32)
+    max_val = np.max(np.abs(samples))
+    if max_val > 0:
+        target_peak = 30000.0  # Approx -0.8 dB peak
+        gain = target_peak / max_val
+        samples = np.clip(samples * gain, -32767, 32767).astype(np.int16)
+        all_audio_frames = samples.tobytes()
+
     out_file = Path(output_path)
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_file, "wb") as f:
-        f.write(audio_bytes)
+
+    with wave.open(str(out_file), "wb") as out_w:
+        out_w.setnchannels(sample_params[0])
+        out_w.setsampwidth(sample_params[1])
+        out_w.setframerate(sample_params[2])
+        out_w.writeframes(all_audio_frames)
 
     with wave.open(str(out_file), "rb") as w:
         frames = w.getnframes()
         rate = w.getframerate()
         duration = frames / float(rate)
+
+    print(f"  ✅ [Sarvam AI] Studio-grade voiceover generated: {duration:.2f}s across {len(batches)} sentences.")
 
     word_timings = align_word_timings_heuristics(text, duration)
 
@@ -243,12 +340,16 @@ def generate_voiceover_with_timings(
         return generate_voiceover_edge_with_timings(text, output_path, voice=voice_id, pace=pace)
 
     try:
-        print(f"[Voiceover Engine] Calling Sarvam AI (Speaker: {speaker}, Pace: {pace}x)...")
+        print(f"[Voiceover Engine] Calling Sarvam AI Bulbul v3 (Speaker: {speaker}, Pace: {pace}x)...")
         return generate_voiceover_sarvam_with_timings(text, output_path, speaker=speaker, pace=pace, model=model)
     except Exception as e:
-        print(f"[Voiceover Engine] Sarvam AI failed ({e}), falling back to Edge TTS...")
-        fallback_voice = "hi-IN-MadhurNeural" if speaker in ["aditya", "shubh", "rahul", "amit"] else "hi-IN-SwaraNeural"
-        return generate_voiceover_edge_with_timings(text, output_path, voice=fallback_voice, pace=pace)
+        print(f"⚠️ [Voiceover Engine] Sarvam AI error ({e}). Attempting backup retry with primary voice...")
+        try:
+            return generate_voiceover_sarvam_with_timings(text, output_path, speaker="aditya", pace=1.02, model="bulbul:v3")
+        except Exception as retry_err:
+            print(f"❌ [Voiceover Engine] Sarvam AI exhausted ({retry_err}). Falling back to Microsoft Edge TTS...")
+            fallback_voice = "hi-IN-MadhurNeural" if speaker in ["aditya", "shubh", "rahul", "amit"] else "hi-IN-SwaraNeural"
+            return generate_voiceover_edge_with_timings(text, output_path, voice=fallback_voice, pace=pace)
 
 def generate_voiceover(
     text: str,

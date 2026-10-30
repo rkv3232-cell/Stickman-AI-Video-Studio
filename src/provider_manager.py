@@ -162,6 +162,15 @@ class ProviderManager:
         if ok and output_file.exists() and output_file.stat().st_size > 5000:
             return True, "Photorealistic AI Engine (Flux/Turbo 9:16)"
 
+        # Attempt 3: High-Definition Curated Thematic Scene Artwork (Zero Blank Frames)
+        import shutil
+        curated_idx = ((scene_idx - 1) % 6) + 1
+        curated_path = Path(f"assets/scenes/scene_{curated_idx}.jpg")
+        if curated_path.exists():
+            shutil.copy2(curated_path, output_file)
+            print(f"[ProviderManager] Loaded curated 4K vertical background for Scene {scene_idx} ({curated_path.name})")
+            return True, f"Curated Studio Visual (Scene {curated_idx})"
+
         return False, "Failed"
 
     def get_status_report(self) -> str:
