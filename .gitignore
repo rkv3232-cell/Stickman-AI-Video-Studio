@@ -1,0 +1,38 @@
+# Environment & Secrets
+.env
+.env.*
+*.env
+
+# Python Virtual Environment & Caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Audio, Video & Render Outputs
+output/
+media/
+*.wav
+*.mp3
+*.mp4
+*.temp.mp3
+*.log
+
+# Reference Repositories (External Repos)
+insta-card-shorts-generator-main/
+MoneyPrinterTurbo/
+pv-tool-main/
+stickman-video-director-main/
+the-generator-main/
+vox-director-main/
+youtube-agentic-ai-studio-main/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

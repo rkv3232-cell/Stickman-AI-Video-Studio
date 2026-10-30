@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raj Everyway Study — AI YouTube Shorts Studio 2.1</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Ambient Glow Orbs -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="app-container">
+        <!-- Top Navigation Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="live-dot"></div>
+                <div class="brand-text">
+                    <h1>RAJ EVERYWAY STUDY</h1>
+                    <span class="tagline">AI YouTube Shorts Master Studio 2.1</span>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-chip active">
+                    <span class="chip-dot"></span>
+                    <span>Gemini 2.5 Flash</span>
+                </div>
+                <div class="status-chip active">
+                    <span class="chip-dot"></span>
+                    <span>Sarvam AI + Edge-TTS</span>
+                </div>
+                <div class="status-chip active">
+                    <span class="chip-dot"></span>
+                    <span>Pollinations AI Flux</span>
+                </div>
+                <div class="status-chip">
+                    <span>1080x1920 30FPS</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Live Trend Radar Banner (Inspired by YAAS) -->
+        <section class="trend-radar-bar">
+            <div class="radar-title">
+                <span class="radar-icon">🔥</span>
+                <strong>LIVE TREND RADAR:</strong>
+            </div>
+            <div class="radar-items" id="radarTrendsList">
+                <span class="loading-text">Fetching real-time trends from Google Trends & Hacker News...</span>
+            </div>
+            <button class="btn-radar-refresh" id="btnRefreshTrends" title="Refresh Live Trends">🔄 Refresh</button>
+        </section>
+
+        <!-- Main Studio Workspace -->
+        <main class="workspace-grid">
+            <!-- Left Column: Generator Studio -->
+            <section class="studio-card left-panel">
+                <div class="panel-header">
+                    <h2>🎬 AI Shorts Production Studio</h2>
+                    <p>Enter any topic, and AI will fact-check, script, voice, visualize, and generate high-CTR thumbnails!</p>
+                </div>
+
+                <!-- Quick Viral Topics Inspiration Chips -->
+                <div class="topic-chips-group">
+                    <label>⚡ Quick Viral Topics:</label>
+                    <div class="chips-container" id="quickTopics">
+                        <button class="topic-chip" data-topic="Top 3 AI Tools for Students in 2026">📚 Top 3 Student AI Tools</button>
+                        <button class="topic-chip" data-topic="DeepSeek vs ChatGPT Reality">🔥 DeepSeek vs ChatGPT</button>
+                        <button class="topic-chip" data-topic="Will AI Replace Programmers?">💻 Will AI Replace Coders?</button>
+                        <button class="topic-chip" data-topic="What is Quantum Computing?">⚛️ Quantum Computing</button>
+                        <button class="topic-chip" data-topic="Dark Web vs Deep Web Truth">🕵️ Dark Web Secrets</button>
+                    </div>
+                </div>
+
+                <!-- Topic Input Box -->
+                <div class="input-group">
+                    <label for="promptInput">🎯 Your Topic / Custom Prompt (Hindi or English):</label>
+                    <div class="input-with-button">
+                        <textarea id="promptInput" rows="2" placeholder="e.g. 'How ISRO creates space tech' or 'Top 5 Study Hacks for Exams'"></textarea>
+                        <button id="btnAiScript" class="btn-neon-action">
+                            <span class="btn-icon">✨</span>
+                            <span>Generate AI Script, SEO & Thumbnail</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Script Editor & Compliance Badge -->
+                <div class="script-editor-container" id="scriptEditorSection">
+                    <div class="editor-header">
+                        <h3>📜 AI Generated Script (Fully Editable)</h3>
+                        <div class="badges-row">
+                            <span class="badge-pill" id="complianceBadge">Monetization Safe ✅</span>
+                            <span class="badge-pill" id="scriptStatusBadge">Ready</span>
+                        </div>
+                    </div>
+
+                    <div class="script-fields">
+                        <div class="field-row">
+                            <label>🎣 3-Second Retention Hook:</label>
+                            <input type="text" id="editHook" placeholder="Hook line that grabs attention in 3 seconds">
+                        </div>
+
+                        <div class="field-row">
+                            <label>💡 Core Points (One per line):</label>
+                            <textarea id="editPoints" rows="3" placeholder="Point 1&#10;Point 2&#10;Point 3"></textarea>
+                        </div>
+
+                        <div class="field-row">
+                            <label>📣 Channel Call-To-Action (CTA):</label>
+                            <input type="text" id="editCta" placeholder="Channel follow/subscribe callout">
+                        </div>
+
+                        <div class="field-row">
+                            <label>🎙️ Complete Voice Narration Text:</label>
+                            <textarea id="editNarration" rows="3" placeholder="Full speech narration for TTS"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls: Dual-Engine Voices & Visuals -->
+                <div class="controls-grid">
+                    <!-- Dual Engine Voice Selection -->
+                    <div class="control-box">
+                        <label for="speakerSelect">🗣️ Voiceover Engine & Speaker:</label>
+                        <select id="speakerSelect" class="form-select">
+                            <optgroup label="🎙️ Sarvam AI (Desi Hindi Voices)">
+                                <option value="aditya" selected>Aditya (Male · Energetic Tech)</option>
+                                <option value="shubh">Shubh (Male · Deep Authority)</option>
+                                <option value="priya">Priya (Female · Warm & Engaging)</option>
+                                <option value="ritu">Ritu (Female · Clear & Crisp)</option>
+                                <option value="rahul">Rahul (Male · Friendly Desi)</option>
+                                <option value="amit">Amit (Male · Calm Storytelling)</option>
+                            </optgroup>
+                            <optgroup label="🆓 Microsoft Edge-TTS (Free & Unlimited)">
+                                <option value="edge_madhur">Madhur (Male · Hindi Neural) [Free]</option>
+                                <option value="edge_swara">Swara (Female · Hindi Neural) [Free]</option>
+                                <option value="edge_prabhat">Prabhat (Male · Indian English) [Free]</option>
+                                <option value="edge_neerja">Neerja (Female · Indian English) [Free]</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <!-- Voice Pace Slider -->
+                    <div class="control-box">
+                        <div class="label-with-val">
+                            <label for="paceSlider">⚡ Speech Pace:</label>
+                            <span id="paceVal">1.05x</span>
+                        </div>
+                        <input type="range" id="paceSlider" min="0.85" max="1.25" step="0.05" value="1.05">
+                    </div>
+
+                    <!-- Stickman Character Rig Engine Selector -->
+                    <div class="control-box full-width">
+                        <label>🎭 Lead Actor: Consistent 2D Stickman Character Engine:</label>
+                        <div class="style-cards-group stickman-cards">
+                            <label class="style-card active">
+                                <input type="radio" name="stickmanStyle" value="modern_beanie" checked>
+                                <div class="card-content">
+                                    <span class="style-icon">🧢</span>
+                                    <strong>Modern Beanie Zeke</strong>
+                                    <small>Yellow Shirt, Red Beanie, Fluid Micro-Animations & Props</small>
+                                </div>
+                            </label>
+                            <label class="style-card">
+                                <input type="radio" name="stickmanStyle" value="classic">
+                                <div class="card-content">
+                                    <span class="style-icon">✏️</span>
+                                    <strong>Classic Minimalist</strong>
+                                    <small>Clean Monochrome Hand-Drawn Linework, High Contrast</small>
+                                </div>
+                            </label>
+                            <label class="style-card">
+                                <input type="radio" name="stickmanStyle" value="cyber_neon">
+                                <div class="card-content">
+                                    <span class="style-icon">🤖</span>
+                                    <strong>Cyber Neon Rig</strong>
+                                    <small>Luminous Cyan/Magenta Contours & Holographic HUD Glow</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Visual Background Style -->
+                    <div class="control-box full-width">
+                        <label>🎨 Visual Background Mode:</label>
+                        <div class="style-cards-group">
+                            <label class="style-card active">
+                                <input type="radio" name="visualStyle" value="motion" checked>
+                                <div class="card-content">
+                                    <span class="style-icon">⚡</span>
+                                    <strong>Full-Motion Cyberpunk</strong>
+                                    <small>3D Neural Tunnel, IDE Terminal, Matrix Rain, Sonar CTA</small>
+                                </div>
+                            </label>
+                            <label class="style-card">
+                                <input type="radio" name="visualStyle" value="ai_cinematic">
+                                <div class="card-content">
+                                    <span class="style-icon">🖼️</span>
+                                    <strong>AI Photorealistic Scenes</strong>
+                                    <small>Free Pollinations.ai 4K Art + Ken Burns Pan/Zoom</small>
+                                </div>
+                            </label>
+                            <label class="style-card">
+                                <input type="radio" name="visualStyle" value="sketch_notes">
+                                <div class="card-content">
+                                    <span class="style-icon">📝</span>
+                                    <strong>Sketch Notes Mode</strong>
+                                    <small>Warm Cream (#F5F0E8) Educational Cards & Pastel Doodles</small>
+                                </div>
+                            </label>
+                            <label class="style-card">
+                                <input type="radio" name="visualStyle" value="hybrid">
+                                <div class="card-content">
+                                    <span class="style-icon">🛸</span>
+                                    <strong>Hybrid Pro</strong>
+                                    <small>Stock Video B-Roll + Cyber HUD Telemetry + Visualizer</small>
+                                </div>
+                            </label>
+                            <label class="style-card">
+                                <input type="radio" name="visualStyle" value="stock">
+                                <div class="card-content">
+                                    <span class="style-icon">🎥</span>
+                                    <strong>Stock Video B-Roll</strong>
+                                    <small>Clean Vertical Tech & Study Stock Footage</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Master 1-Click Render Button -->
+                <div class="render-action-area">
+                    <button id="btnRenderShort" class="btn-primary-render">
+                        <span class="rocket-icon">🚀</span>
+                        <span class="render-text">RENDER 1080x1920 SHORT & THUMBNAIL</span>
+                    </button>
+                </div>
+
+                <!-- Real-time Progress Bar & Steps -->
+                <div class="progress-container" id="progressSection" style="display: none;">
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-meta">
+                        <span id="progressPercent">0%</span>
+                        <span id="progressMessage">Initializing engine...</span>
+                    </div>
+
+                    <div class="progress-steps-list">
+                        <div class="step-item" id="stepScript"><span>1</span> AI Script & SEO Ready</div>
+                        <div class="step-item" id="stepVoice"><span>2</span> Dual-Engine Voiceover</div>
+                        <div class="step-item" id="stepVisuals"><span>3</span> 30 FPS Visuals & B-Roll</div>
+                        <div class="step-item" id="stepSubtitles"><span>4</span> Bouncy Spring Subtitles</div>
+                        <div class="step-item" id="stepRender"><span>5</span> Final MP4 & Thumbnail Ready</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Phone Mockup, Thumbnail Preview & YouTube SEO Launch Kit -->
+            <section class="studio-card right-panel">
+                <div class="panel-header">
+                    <h2>📱 Live Preview, Thumbnail & SEO</h2>
+                    <p>Watch your generated Short, view your high-CTR thumbnail & copy viral tags!</p>
+                </div>
+
+                <!-- Preview Switcher Tabs (Video vs Thumbnail vs Storyboard vs QC) -->
+                <div class="preview-tabs">
+                    <button class="tab-btn active" id="tabVideoPreview">🎬 9:16 Video Player</button>
+                    <button class="tab-btn" id="tabThumbPreview">🖼️ High-CTR Thumbnail</button>
+                    <button class="tab-btn" id="tabStoryboardPreview">📋 Storyboard Plan</button>
+                    <button class="tab-btn" id="tabQcPreview">🛡️ Quality Report</button>
+                </div>
+
+                <!-- 9:16 Smartphone Mockup Frame -->
+                <div class="mockup-wrapper" id="videoPreviewWrap">
+                    <div class="smartphone-frame">
+                        <div class="phone-notch"></div>
+                        <div class="phone-screen" id="phoneScreen">
+                            <video id="videoPlayer" controls loop playsinline poster="">
+                                <source src="" type="video/mp4" id="videoSource">
+                                Your browser does not support HTML5 video.
+                            </video>
+                            <div class="player-placeholder" id="playerPlaceholder">
+                                <div class="placeholder-icon">🎬</div>
+                                <h3>Your 9:16 Short Will Appear Here</h3>
+                                <p>Click <strong>'Render Short & Thumbnail'</strong> to start 100% automated production!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thumbnail Preview Box -->
+                <div class="thumbnail-preview-wrap" id="thumbPreviewWrap" style="display: none;">
+                    <div class="thumb-frame">
+                        <img id="thumbImage" src="" alt="Thumbnail Preview" style="display: none;">
+                        <div class="player-placeholder" id="thumbPlaceholder">
+                            <div class="placeholder-icon">🖼️</div>
+                            <h3>High-CTR Thumbnail Preview</h3>
+                            <p>Will be rendered automatically with glowing typography and hook badge.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Storyboard Scenes Preview Box -->
+                <div class="storyboard-preview-wrap" id="storyboardPreviewWrap" style="display: none;">
+                    <div class="storyboard-container" id="storyboardScenesList">
+                        <div class="empty-state">Storyboard scenes will be displayed here after generation.</div>
+                    </div>
+                </div>
+
+                <!-- Quality Control Report Preview Box -->
+                <div class="qc-preview-wrap" id="qcPreviewWrap" style="display: none;">
+                    <div class="qc-card-container" id="qcReportContent">
+                        <div class="empty-state">Quality Control score and checks will appear here after video rendering.</div>
+                    </div>
+                </div>
+
+                <!-- 7 Production Deliverables Download Bar -->
+                <div class="video-actions-bar" id="videoActionsBar" style="display: none;">
+                    <div class="downloads-headline">
+                        <span>📦 7 PRODUCTION DELIVERABLES READY:</span>
+                    </div>
+                    <div class="downloads-grid">
+                        <a id="btnDownloadVideo" href="#" download class="btn-download">
+                            <span>🎥 1. final_video.mp4</span>
+                        </a>
+                        <a id="btnDownloadThumb" href="#" download class="btn-download secondary">
+                            <span>🖼️ 2. thumbnail.png</span>
+                        </a>
+                        <a id="btnDownloadScript" href="#" download class="btn-download tertiary">
+                            <span>📜 3. script.txt</span>
+                        </a>
+                        <a id="btnDownloadStoryboard" href="#" download class="btn-download tertiary">
+                            <span>📋 4. storyboard.json</span>
+                        </a>
+                        <a id="btnDownloadSubtitles" href="#" download class="btn-download tertiary">
+                            <span>💬 5. subtitles.srt</span>
+                        </a>
+                        <a id="btnDownloadMetadata" href="#" download class="btn-download tertiary">
+                            <span>📊 6. metadata.json</span>
+                        </a>
+                        <a id="btnDownloadQc" href="#" download class="btn-download highlight">
+                            <span>🛡️ 7. quality_report.md</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 100-Point SEO Findability Audit Meter (Inspired by YAAS) -->
+                <div class="seo-audit-meter" id="seoAuditMeter">
+                    <div class="meter-header">
+                        <span class="meter-title">📊 YouTube Findability Score:</span>
+                        <span class="meter-score-badge" id="seoScoreBadge">95/100 · A+ Viral Ready</span>
+                    </div>
+                    <div class="meter-bar-wrap">
+                        <div class="meter-bar-fill" id="seoMeterFill" style="width: 95%;"></div>
+                    </div>
+                    <div class="audit-checks-summary" id="auditChecksSummary">
+                        <span>✓ Title Length Optimized</span>
+                        <span>✓ Magnetic Hook Included</span>
+                        <span>✓ #Shorts Tag Present</span>
+                        <span>✓ Targeted Tags Density</span>
+                    </div>
+                </div>
+
+                <!-- YouTube SEO Launch Kit Section -->
+                <div class="seo-kit-card" id="seoKitCard">
+                    <div class="seo-header">
+                        <h3>🚀 YouTube Studio Launch Kit</h3>
+                        <span class="badge-seo">Ready to Copy</span>
+                    </div>
+
+                    <div class="seo-field">
+                        <div class="seo-title-bar">
+                            <label>📌 YouTube Title:</label>
+                            <button class="btn-copy" onclick="copyText('seoTitleText')">📋 Copy</button>
+                        </div>
+                        <div class="copy-box" id="seoTitleText">Will AI Replace Programmers in 2026? 🤖 #Shorts</div>
+                    </div>
+
+                    <div class="seo-field">
+                        <div class="seo-title-bar">
+                            <label>🏷️ Viral Hashtags:</label>
+                            <button class="btn-copy" onclick="copyText('seoHashtagsText')">📋 Copy</button>
+                        </div>
+                        <div class="copy-box tags" id="seoHashtagsText">#shorts #ai #tech #coding #study #rajeverywaystudy #viral</div>
+                    </div>
+
+                    <div class="seo-field">
+                        <div class="seo-title-bar">
+                            <label>📝 Full Description:</label>
+                            <button class="btn-copy" onclick="copyText('seoDescText')">📋 Copy</button>
+                        </div>
+                        <div class="copy-box desc" id="seoDescText">Subscribe to Raj Everyway Study for daily tech and study insights!</div>
+                    </div>
+
+                    <!-- Autocomplete Keyword Suggestions -->
+                    <div class="seo-field" id="autocompleteSection">
+                        <label>🔍 Trending YouTube Autocomplete Searches:</label>
+                        <div class="suggestions-chips-wrap" id="suggestionsChips">
+                            <span class="suggestion-tag">deepseek vs chatgpt</span>
+                            <span class="suggestion-tag">ai coding tools 2026</span>
+                            <span class="suggestion-tag">best ai for students</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Output Library Gallery -->
+                <div class="recent-library-card">
+                    <div class="library-header">
+                        <h3>📂 Generated Videos & Thumbnails</h3>
+                        <button class="btn-refresh" id="btnRefreshVideos">🔄 Refresh</button>
+                    </div>
+                    <div class="videos-list" id="videosList">
+                        <div class="empty-state">No videos generated yet. Create your first one above!</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastNotification" class="toast">Copied to clipboard!</div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
